@@ -1,34 +1,88 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Next-Auth-With-Kakao&mongoDB
 
-## Getting Started
+**목표**
+리엑트에서 카카오톡 로그인 인증과 사용자 정보를 **mongoDB**에 기록한다. 
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
+####  Step.1 New Project
+**[Next.js](https://nextjs.org/) 프레임워크 사용.**
+```
+yarn create next-app next-auth-with-kakao
+yarn  add next-auth @next-auth/mongodb-adapter mongodb
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+#### Step.2 Add API route
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+page/api/auth/[...nextauth].js
+```
+import NextAuth from  "next-auth";
+import KakaoProvider from  "next-auth/providers/kakao";
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+export default NextAuth({
+	provider:[
+		KakaoProvider({
+			clientId: process.env.KAKAO_CLIENT_ID,
+			clientSecret: process.env.KAKAO_CLIENT_SECRET
+		}),
+	],
+});
+```
+> **clientId:** kakao에서 발급한 secret key
+>  **clientSecret:** 의미없는 문자열
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+#### Step.3 Connect MongoDB
 
-## Learn More
+lib/mongodb.js
+```
+import { MongoClient } from "mongodb"
 
-To learn more about Next.js, take a look at the following resources:
+const uri = process.env.MONGODB_URI;
+const options = {
+    useUnifiedTopology: true,
+    useNewUrlParser: true,
+}
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+let client;
+let clientPromise;
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+if (!process.env.MONGODB_URI) {
+    throw new Error("Please add your Mongo URI to .env.local")
+};
 
-## Deploy on Vercel
+if (process.env.NODE_ENV === "development") {
+    if (!global._mongoClientPromise) {
+        client = new MongoClient(uri, options)
+        global._mongoClientPromise = client.connect()
+    };
+    clientPromise = global._mongoClientPromise
+} else {
+    client = new MongoClient(uri, options)
+    clientPromise = client.connect()
+};
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+export default clientPromise;
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+page/api/auth/[...nextauth].js
+```
+import NextAuth from  "next-auth";
+import KakaoProvider from  "next-auth/providers/kakao";
+import clientPromise from "../../../util/mongodb";
+import { MongoDBAdapter } from "@next-auth/mongodb-adapter";
+
+export default NextAuth({
+	...
+    adapter: MongoDBAdapter(clientPromise),
+});
+```
+> mongodb-adapter가 mongodb에 정보를 자동으로 저장해 준다.
+![enter image description here](https://next-auth.js.org/assets/images/nextauth_v4_schema-9d6746cfdef30cb1a4c573edb0cc8070.png)
+
+##
+.env.local
+```
+MONGODB_URI= 
+KAKAO_CLIENT_ID=
+KAKAO_CLIENT_SECRET=
+NEXTAUTH_SECRET=
+NEXTAUTH_URL= http://localhost:PORTNUMBER
+```

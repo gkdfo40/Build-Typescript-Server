@@ -14,3 +14,12 @@ a {
 * {
   box-sizing: border-box;
 }
+
+iframe {
+  background: #ccc;
+  border: 1px solid #ccc;
+  height: 10rem;
+  width: 40%;
+  border-radius: 0.5rem;
+  filter: invert(1);
+}
